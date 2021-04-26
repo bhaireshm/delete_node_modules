@@ -13,6 +13,7 @@ if EXIST "./node_modules" (
             if %%~zs GTR 0 (
                 @REM The directory is not empty
                 GOTO startApp
+                EXIT /B 0
             )
         )
     )

@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-const { exit } = require("process");
 const readline = require("readline");
 const {
   log,
@@ -9,34 +8,71 @@ const {
   logStatus,
   logFileDeleted,
   logFolderDeleted,
-  chalk,
 } = require("./logger");
 
-var completePathName = "";
-var deleteFolderName = "node_modules";
-var currentNodeModulePath = path.join(__dirname, "");
 var rl;
-var logDataArr = [];
 var logData = {};
+var logDataArr = [];
+var deleteFolderName;
+var deleteAll = false;
+var completePathName = "";
+var currentNodeModulePath = path.join(__dirname, "");
 
-// Start the process
-readLine();
+// const prompt = require('prompt');
 
-function readLine() {
-  rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+// prompt.start();
 
+// prompt.get(['username', 'email'], function (err, result) {
+//     if (err) { return onErr(err); }
+//     console.log('Command-line input received:');
+//     console.log('  Username: ' + result.username);
+//     console.log('  Email: ' + result.email);
+// });
+
+// function onErr(err) {
+//     console.log(err);
+//     return 1;
+// }
+
+rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+rl.question(
+  "\n1. Delete Only Node Modules folder.\n2. Delete All data in the folder.\n\nSelect your option(enter zero to exit): ",
+  (opt) => {
+    if (opt == "0") return stopApp();
+
+    if (opt == "1") {
+      deleteAll = false;
+      // Start the process
+      readPathForNodeModules();
+    } else if (opt == "2") {
+      deleteAll = true;
+      // Start the process
+      readPathForNodeModules();
+    } else {
+      logError("Invalid input");
+    }
+  }
+);
+
+function readPathForNodeModules() {
   rl.question(
     "\nEnter Complete path (Enter zero to exit): ",
     (userEnteredPaths) => {
-      if (!isEmpty(userEnteredPaths) && userEnteredPaths == "0") {
+      if (
+        (!isEmpty(userEnteredPaths) && userEnteredPaths == "0") ||
+        userEnteredPaths == "zero" ||
+        userEnteredPaths == "ZERO"
+      ) {
         log("Application stopped.");
-        exit(0);
+        stopApp();
       } else {
         logSuccess("Process started...");
         var startedAt = Date.now();
+        deleteFolderName = "node_modules";
 
         if (!isEmpty(userEnteredPaths)) {
           userEnteredPaths = userEnteredPaths.split(",");
@@ -110,7 +146,7 @@ function exitApp(startedAt, status) {
   logData = {};
   logStatus(logDataArr);
   // logSuccess("Process completed. Elapsed time: " + elapsedTime + "s");
-  readLine();
+  readPathForNodeModules();
 }
 
 // check all the folders, if node_modules folder present delete it.
@@ -176,4 +212,12 @@ function isEmpty(data) {
   let count = 0;
   for (let i in data) if (data.hasOwnProperty(i)) count++;
   return count == 0;
+}
+
+function stopApp() {
+  if (rl) rl.close();
+  rl = null;
+  logDataArr = [];
+  logData = {};
+  process.exit(0);
 }
