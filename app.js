@@ -18,22 +18,101 @@ var currentNodeModulePath = path.join(__dirname, "");
 var rl;
 var logDataArr = [];
 var logData = {};
+var isDeleteAll = false;
 
-// Start the process
-readLine();
+// const prompt = require("prompt");
+// const properties = [];
+// [
+//   {
+//     name: "name",
+//     description: "Your name",
+//     type: "string",
+//     required: true,
+//   },
+//   {
+//     name: "surname",
+//     description: "Your surname",
+//     type: "string",
+//     required: true,
+//     message: "Please dont use the demo credentials",
+//     conform: function (surname) {
+//       var name = prompt.history("name").value;
+//       return name !== "John" || surname !== "Smith";
+//     },
+//   },
+// ];
+// prompt.start();
+// prompt.get(properties, function (err, result) {
+//   if (err) {
+//     return onErr(err);
+//   }
+//   console.log("  name: " + result.name);
+//   console.log("  surname: " + result.surname);
+// });
+// function onErr(err) {
+//   console.log(err);
+//   return 1;
+// }
+
+askUser();
+
+function askUser() {
+  if (rl) rl.close();
+  rl = null;
+
+  rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  // Ask user
+  rl.question(
+    "\n0. Enter zero to exit.\n1. Delete only node_modules folder.\n2. Delete all data.\n\nAnswer: ",
+    (option) => {
+      if (option == "2") {
+        // delete all
+        isDeleteAll = true;
+
+        console.log();
+        console.info("Note: Don't close the the terminal.");
+        console.info("Process started please wait...");
+
+        readLine();
+      } else if (option == "1") {
+        // Delete node_modules
+        readLine();
+      } else if (option == "0") {
+        log("Application stopped.");
+        exit(0);
+      } else {
+        console.info("Invalid option");
+
+        // Ask user again
+        askUser();
+      }
+    }
+  );
+}
 
 function readLine() {
+  if (rl) rl.close();
+  rl = null;
+
   rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
   rl.question(
-    "\nEnter Complete path (Enter zero to exit): ",
+    "\nEnter Complete path (Enter zero to exit or one to restart): ",
     (userEnteredPaths) => {
       if (!isEmpty(userEnteredPaths) && userEnteredPaths == "0") {
         log("Application stopped.");
         exit(0);
+      } else if (!isEmpty(userEnteredPaths) && userEnteredPaths == "1") {
+        rl.close();
+        rl = null;
+        askUser();
       } else {
         logSuccess("Process started...");
         var startedAt = Date.now();
@@ -51,29 +130,34 @@ function readLine() {
 
               try {
                 if (!isEmpty(completePathName)) {
-                  completePathName = completePathName.replace(
-                    "\\node_modules",
-                    ""
-                  );
                   completePathName = completePathName.replace(/"/g, "");
 
-                  if (completePathName === currentNodeModulePath) {
-                    // if (completePathName === "") {
-                    log("You cannot delete current project's node_modules");
-                  } else {
+                  if (isDeleteAll) {
+                    // Delete all data
                     const folders = fs.readdirSync(completePathName);
 
-                    if (folders && folders.length > 0) {
-                      if (folders.some((f) => f == deleteFolderName)) {
-                        // Check for the node_modules folder
-                        checkFolderForNodeModules(folders, completePathName);
+                    deleteAllData(folders, completePathName);
+                  } else {
+                    completePathName = completePathName.replace("\\node_modules", "");
+
+                    if (completePathName === currentNodeModulePath) {
+                      // if (completePathName === "") {
+                      log("You cannot delete current project's node_modules");
+                    } else {
+                      const folders = fs.readdirSync(completePathName);
+
+                      if (folders && folders.length > 0) {
+                        if (folders.some((f) => f == deleteFolderName)) {
+                          // Check for the node_modules folder
+                          checkFolderForNodeModules(folders, completePathName);
+                        } else {
+                          log("node_modules folder not found!!");
+                          return;
+                        }
                       } else {
-                        log("node_modules folder not found!!");
+                        log("No folders found in the path.");
                         return;
                       }
-                    } else {
-                      log("No folders found in the path.");
-                      return;
                     }
                   }
                 } else {
@@ -113,18 +197,43 @@ function exitApp(startedAt, status) {
   readLine();
 }
 
+function deleteAllData(directories, completePathName) {
+  try {
+    if (directories && directories.length > 0) {
+      console.log(chalk.red("DELETE ALL DATA PROCESS STARTED..."));
+      
+      directories.forEach((directory) => {
+        let completeDirectoryPath = path.join(completePathName, directory, "\\");
+        const folders = fs.readdirSync(completeDirectoryPath);
+
+        folders.forEach((fldr) => {
+          const p = path.join(completeDirectoryPath, fldr);
+          rimraf(p, function (err) {
+            if (err) console.error(err);
+            logFolderDeleted(p);
+          });
+        });
+      });
+    } else {
+      // Folder is empty
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 // check all the folders, if node_modules folder present delete it.
 function checkFolderForNodeModules(fldrs) {
   fldrs.forEach((packageFolderName, i) => {
-    let packageFolderPath = path.join(
-      completePathName,
-      packageFolderName,
-      "\\"
-    );
+    let packageFolderPath = path.join(completePathName, packageFolderName, "\\");
 
-    if (packageFolderName == deleteFolderName) {
+    if (packageFolderName == deleteFolderName && !isDeleteAll) {
       // Read the node_modules for installed packages
       readPackageFoldersAndDelete(packageFolderPath, packageFolderName);
+    }
+
+    if (isDeleteAll) {
+      rimrafDelete(packageFolderPath);
     }
   });
 }
@@ -176,4 +285,11 @@ function isEmpty(data) {
   let count = 0;
   for (let i in data) if (data.hasOwnProperty(i)) count++;
   return count == 0;
+}
+
+function rimrafDelete(path) {
+  rimraf(path, function (err) {
+    if (err) console.error(err);
+    logFolderDeleted(path);
+  });
 }
