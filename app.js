@@ -60,7 +60,7 @@ rl.question(
 
 function readPathForNodeModules() {
   rl.question(
-    "\nEnter Complete path (Enter zero to exit): ",
+    "\nEnter Complete path (Enter zero to exit or one to restart): ",
     (userEnteredPaths) => {
       if (
         (!isEmpty(userEnteredPaths) && userEnteredPaths == "0") ||
@@ -87,29 +87,34 @@ function readPathForNodeModules() {
 
               try {
                 if (!isEmpty(completePathName)) {
-                  completePathName = completePathName.replace(
-                    "\\node_modules",
-                    ""
-                  );
                   completePathName = completePathName.replace(/"/g, "");
 
-                  if (completePathName === currentNodeModulePath) {
-                    // if (completePathName === "") {
-                    log("You cannot delete current project's node_modules");
-                  } else {
+                  if (isDeleteAll) {
+                    // Delete all data
                     const folders = fs.readdirSync(completePathName);
 
-                    if (folders && folders.length > 0) {
-                      if (folders.some((f) => f == deleteFolderName)) {
-                        // Check for the node_modules folder
-                        checkFolderForNodeModules(folders, completePathName);
+                    deleteAllData(folders, completePathName);
+                  } else {
+                    completePathName = completePathName.replace("\\node_modules", "");
+
+                    if (completePathName === currentNodeModulePath) {
+                      // if (completePathName === "") {
+                      log("You cannot delete current project's node_modules");
+                    } else {
+                      const folders = fs.readdirSync(completePathName);
+
+                      if (folders && folders.length > 0) {
+                        if (folders.some((f) => f == deleteFolderName)) {
+                          // Check for the node_modules folder
+                          checkFolderForNodeModules(folders, completePathName);
+                        } else {
+                          log("node_modules folder not found!!");
+                          return;
+                        }
                       } else {
-                        log("node_modules folder not found!!");
+                        log("No folders found in the path.");
                         return;
                       }
-                    } else {
-                      log("No folders found in the path.");
-                      return;
                     }
                   }
                 } else {
@@ -149,18 +154,43 @@ function exitApp(startedAt, status) {
   readPathForNodeModules();
 }
 
+function deleteAllData(directories, completePathName) {
+  try {
+    if (directories && directories.length > 0) {
+      console.log(chalk.red("DELETE ALL DATA PROCESS STARTED..."));
+      
+      directories.forEach((directory) => {
+        let completeDirectoryPath = path.join(completePathName, directory, "\\");
+        const folders = fs.readdirSync(completeDirectoryPath);
+
+        folders.forEach((fldr) => {
+          const p = path.join(completeDirectoryPath, fldr);
+          rimraf(p, function (err) {
+            if (err) console.error(err);
+            logFolderDeleted(p);
+          });
+        });
+      });
+    } else {
+      // Folder is empty
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 // check all the folders, if node_modules folder present delete it.
 function checkFolderForNodeModules(fldrs) {
   fldrs.forEach((packageFolderName, i) => {
-    let packageFolderPath = path.join(
-      completePathName,
-      packageFolderName,
-      "\\"
-    );
+    let packageFolderPath = path.join(completePathName, packageFolderName, "\\");
 
-    if (packageFolderName == deleteFolderName) {
+    if (packageFolderName == deleteFolderName && !isDeleteAll) {
       // Read the node_modules for installed packages
       readPackageFoldersAndDelete(packageFolderPath, packageFolderName);
+    }
+
+    if (isDeleteAll) {
+      rimrafDelete(packageFolderPath);
     }
   });
 }
