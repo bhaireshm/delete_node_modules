@@ -9,6 +9,7 @@ const {
   logFileDeleted,
   logFolderDeleted,
 } = require("./logger");
+const rimraf = require('rimraf');
 
 var rl;
 var logData = {};
