@@ -2,3 +2,5 @@
 * On start Prompt for deleting node_modules or all folders
 * For all folders deletion ask for confirmation to delete all the folders
 * forcefully stop running command prompt on ctrl + c command
+* remove all file logs and folder logs, instead show loading progress bar.
+* Check nested folders has node_modules in it, if found delete those.
